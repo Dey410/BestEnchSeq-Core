@@ -987,6 +987,9 @@ TEST_CASE("test_besq_abort_concurrent") {
     // Safety bound: if abort_solve() somehow fails to cancel, the executor's
     // timeout watcher cancels after this instead of running forever.
     request.search_config.max_search_time = std::chrono::milliseconds(1500);
+    // Keep the solve in-flight: 20 equal books are trivial for the weight-class
+    // fast path, so force the general (exponential) search.
+    request.search_config.extra["dp_merge.weight_class"] = "off";
 
     SolveResult result;
     std::string error;

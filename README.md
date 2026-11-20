@@ -143,6 +143,8 @@ SSE 事件流：`GET /api/tasks/{id}/events`（`progress` / `diag` / `completed`
 | `diff_first` | 近似 | 否 | 任意 | 插件 | PPN 层内最便宜对 |
 | `penalty_balance` | 近似 | 否 | 任意 | 插件 | 合并最接近惩罚对 |
 
+> `dp_merge` / `bb_dp` 在 direct 模式的常规输入（一件装备 + 互不冲突的单附魔书）上先走**权重类快速通道**：把同权重的书视为可互换，按多重集做 DP，精确且通常毫秒级（`large` 组 24 附魔约 30 ms）；上表"规模"是通用搜索的上限，快速通道不适用时自动回退。详见 [search-config-semantics.md §4c](docs/algotithm_designs/search-config-semantics.md)。
+
 新算法只需实现 `IAlgorithm::execute()` 即可获得线程管理、暂停/取消与进度上报。
 
 ## 架构

@@ -129,6 +129,8 @@ SSE event stream: `GET /api/tasks/{id}/events` (`progress` / `diag` / `completed
 | `diff_first` | Approx | No | Any | Plugin | Cheapest pair per PPN layer |
 | `penalty_balance` | Approx | No | Any | Plugin | Merge closest penalty pairs |
 
+> In direct mode, `dp_merge` / `bb_dp` first try a **weight-class fast path** on the usual input shape (one equipment + mutually compatible single-enchant books): books of equal weight are interchangeable, so an exact DP over multisets usually finishes in milliseconds (~30 ms for the 24-enchant `large` case). The "Scale" column is the general search's limit; inputs the fast path does not cover fall back to it automatically. See [search-config-semantics.md §4c](docs/algotithm_designs/search-config-semantics.md).
+
 New algorithms only need to implement `IAlgorithm::execute()` to gain thread management, pause/cancel, and progress reporting.
 
 ## Architecture

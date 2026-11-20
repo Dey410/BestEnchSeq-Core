@@ -3,6 +3,7 @@
 #include "common/utils/thread/ThreadPool.h"
 #include "domain/algorithm/ExecutionContext.h"
 #include "domain/algorithm/components/SearchUtils.h"
+#include "domain/algorithm/components/WeightClassDp.h"
 #include "domain/algorithm/resolvers/IResolver.h"
 #include <algorithm>
 #include <atomic>
@@ -361,6 +362,33 @@ void DPMergeAlgorithm::execute(const AlgorithmInput &input, ExecutionContext& ct
         _diag.status = "CompleteNoSolution";
         ctx.set_exit_diagnostics(_diag);
         return;
+    }
+
+    // Weight-class fast path: exact for the usual direct-mode shape (bare or
+    // sourced equipment + disjoint compatible books), polynomial in the number
+    // of distinct book weights.  Same optimum cost as the partition DP below;
+    // among equal-cost plans it prefers one with every step ≤ max_step_cost.
+    // Ineligible inputs (and SearchConfig.extra["dp_merge.weight_class"]=off)
+    // fall through to the general search.
+    if (WeightClassDp::enabled(input.config.search, name())) {
+        WeightClassDp::Options opt;
+        opt.objective     = WeightClassDp::Objective::MinCost;
+        opt.max_step_cost = input.config.search.max_step_cost;
+        auto fast = WeightClassDp::solve(items, input.target, input.registry, _forge_engine, opt, ctx);
+        if (fast.status == WeightClassDp::Status::Cancelled) {
+            _diag.status = "Cancelled";
+            ctx.set_exit_diagnostics(_diag);
+            ctx.report_progress(100, ProgressStatus::Cancelled);
+            return;
+        }
+        if (fast.status == WeightClassDp::Status::Solved) {
+            fast.fill_diagnostics(_diag);
+            _diag.status = "Complete";
+            ctx.set_exit_diagnostics(_diag);
+            ctx.report_solution(std::move(fast.steps));
+            ctx.report_progress(100, ProgressStatus::Complete);
+            return;
+        }
     }
 
     std::vector<Item> mutable_items = items;

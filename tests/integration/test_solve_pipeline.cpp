@@ -151,6 +151,8 @@ void test_resume_from_checkpoint() {
     input.data = algorithm::DirectPayload{};
     input.target.type = algorithm::ItemType::Equip;
     input.target.enchs.insert(algorithm::Ench{0, 5});
+    // Populate the general DP's memo cache (the fast path would leave it empty).
+    input.config.search.extra["dp_merge.weight_class"] = "off";
     algorithm::ExecutionContext ctx(0, "dp_merge");
     algo.init(input, ctx);
     algo.execute(input, ctx);
@@ -231,6 +233,9 @@ void test_save_solve_state_roundtrip() {
     request.search_config.max_solutions = 4;
     // 安全上限：若 pause/save 失败，求解不能无限跑（框架 per-case 超时兜底）。
     request.search_config.max_search_time = std::chrono::milliseconds(30000);
+    // 暂停/存档测的是通用分割 DP 的 memo 状态；同权重书会被权重类快速通道
+    // 毫秒级解完（无暂停窗口），故显式关闭（该开关随 input 写入 checkpoint）。
+    request.search_config.extra["dp_merge.weight_class"] = "off";
 
     const std::string ck_path = (std::filesystem::temp_directory_path() / "besq_ckpt_roundtrip.ckpt").string();
     std::error_code ec;

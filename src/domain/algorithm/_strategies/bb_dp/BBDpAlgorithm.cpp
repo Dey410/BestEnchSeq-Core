@@ -2,6 +2,7 @@
 #include "common/utils/thread/ThreadPool.h"
 #include "domain/algorithm/ExecutionContext.h"
 #include "domain/algorithm/components/SearchUtils.h"
+#include "domain/algorithm/components/WeightClassDp.h"
 #include "domain/algorithm/resolvers/IResolver.h"
 #include <algorithm>
 #include <bit>
@@ -537,6 +538,33 @@ void BBDpAlgorithm::execute(const AlgorithmInput &input, ExecutionContext &ctx) 
         _diag.status = "CompleteNoSolution";
         ctx.set_exit_diagnostics(_diag);
         return;
+    }
+
+    // Weight-class fast path (components/WeightClassDp): exact for the usual
+    // direct-mode shape, with the same soft-cap semantics as Pass A / Pass B
+    // below (cheapest all-≤cap plan, else the unconstrained optimum).  It is
+    // exact, so beam_width / initial_bound (speed knobs for the search below)
+    // do not apply.  Ineligible inputs (and
+    // SearchConfig.extra["bb_dp.weight_class"]=off) fall through.
+    if (WeightClassDp::enabled(input.config.search, name())) {
+        WeightClassDp::Options opt;
+        opt.objective     = WeightClassDp::Objective::CapFirst;
+        opt.max_step_cost = input.config.search.max_step_cost;
+        auto fast = WeightClassDp::solve(items, input.target, input.registry, _forge_engine, opt, ctx);
+        if (fast.status == WeightClassDp::Status::Cancelled) {
+            _diag.status = "Cancelled";
+            ctx.set_exit_diagnostics(_diag);
+            ctx.report_progress(100, ProgressStatus::Cancelled);
+            return;
+        }
+        if (fast.status == WeightClassDp::Status::Solved) {
+            fast.fill_diagnostics(_diag);
+            _diag.status = "Complete";
+            ctx.set_exit_diagnostics(_diag);
+            ctx.report_solution(std::move(fast.steps));
+            ctx.report_progress(100, ProgressStatus::Complete);
+            return;
+        }
     }
 
     const int32_t cap        = input.config.search.max_step_cost;
