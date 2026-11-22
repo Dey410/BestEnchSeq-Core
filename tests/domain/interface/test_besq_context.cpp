@@ -576,7 +576,7 @@ TEST_CASE("test_c_abi_solve_inventory") {
     expect(rc == 0, "c abi load_builtin");
 
     // Inventory mode with a real items array.  "algorithm" is omitted so the
-    // mode-dependent default (hamming) is exercised, and the items are parsed
+    // mode-dependent default (bb_dp) is exercised, and the items are parsed
     // and fed to the solver (previously the payload was always empty).
     const char* json_input =
         "{\"target\":{\"equipment\":\"diamond_sword\",\"enchantments\":[{\"id\":\"sharpness\",\"level\":5}]},"
@@ -596,8 +596,8 @@ TEST_CASE("test_c_abi_solve_inventory") {
     if (json_result) {
         std::string result(json_result);
         expect(result.find("\"success\": true") != std::string::npos, "c abi inventory solve should report success");
-        expect(result.find("\"algorithm\": \"hamming\"") != std::string::npos,
-               "c abi inventory solve should default to hamming");
+        expect(result.find("\"algorithm\": \"bb_dp\"") != std::string::npos,
+               "c abi inventory solve should default to bb_dp");
         expect(result.find("\"solutions\"") != std::string::npos, "c abi inventory solve returns solutions");
         besq_free_string(json_result);
     }

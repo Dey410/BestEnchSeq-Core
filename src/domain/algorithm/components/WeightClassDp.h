@@ -18,8 +18,9 @@ struct SearchConfig;
 ///
 /// The working set is one equipment base (items[0]) plus books whose
 /// enchantments are pairwise disjoint, mutually compatible, compatible with the
-/// base and applicable to it — exactly what DefaultResolver emits in direct
-/// mode.  Every forge cost then decomposes into per-book constants:
+/// base and applicable to it, each book carrying a target enchant the base
+/// still lacks — exactly what DefaultResolver emits in direct mode (and in
+/// inventory mode when the pool has no spare items).  Every forge cost then decomposes into per-book constants:
 ///
 ///     book  ← group : P(h_base) + P(h_group) + Σ_{b ∈ group} w_book(b)
 ///     equip ← group : P(h_base) + P(h_group) + Σ_{b ∈ group} w_base(b)

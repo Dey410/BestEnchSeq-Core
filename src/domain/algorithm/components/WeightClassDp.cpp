@@ -64,7 +64,8 @@ uint64_t sat_mul(uint64_t a, uint64_t b) noexcept {
 }
 
 template <typename Pen>
-bool build_classes(const ItemCollection& items, const EnchReg& reg, const ForgeEngine& engine, Pen&& pen, Classes& c) {
+bool build_classes(
+    const ItemCollection& items, const Item& target, const EnchReg& reg, const ForgeEngine& engine, Pen&& pen, Classes& c) {
     if (items.size() < 2 || items[0].type != ItemType::Equip)
         return false;
     const Item& base = items[0];
@@ -73,6 +74,11 @@ bool build_classes(const ItemCollection& items, const EnchReg& reg, const ForgeE
 
     // Books only, each non-empty, enchantments pairwise disjoint (a shared
     // enchant means level-up merges — not additive, general search owns it).
+    // Every book must also be necessary — it carries a target enchant the base
+    // still lacks, which (books being disjoint) no other book can supply — so
+    // "merge everything" is the only plan shape.  Direct mode always satisfies
+    // this; an inventory pool with spare books goes to the general search,
+    // which picks the cheapest subset.
     EnchSet::mask_type books_mask = 0;
     for (size_t i = 1; i < items.size(); ++i) {
         const Item& b = items[i];
@@ -82,6 +88,13 @@ bool build_classes(const ItemCollection& items, const EnchReg& reg, const ForgeE
         if (m & books_mask)
             return false;
         books_mask |= m;
+        bool needed = false;
+        for (auto t = m & target.enchs.get_mask(); t && !needed; t &= t - 1) {
+            const auto id = static_cast<EnchReg::id_type>(std::countr_zero(t));
+            needed = base.enchs[id] < target.enchs[id];
+        }
+        if (!needed)
+            return false;
     }
 
     // No book enchant may conflict with another book's or the base's (forge_into
@@ -367,7 +380,7 @@ WeightClassDp::Result WeightClassDp::solve(const ItemCollection& items,
     };
 
     Classes c;
-    if (!build_classes(items, reg, engine, pen, c) || !within_budget(c, opt.split_budget))
+    if (!build_classes(items, target, reg, engine, pen, c) || !within_budget(c, opt.split_budget))
         return r;
     build_state_tables(c);
     r.classes = static_cast<uint32_t>(c.d);
